@@ -1,0 +1,869 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Stillwater — CBT for Insomnia</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<style>
+  :root {
+    --ink: #0d1117; --deep: #111827; --mid: #1e2d40; --surface: #1a2535;
+    --card: #1f2f42; --border: rgba(255,255,255,0.07); --muted: #8da0b3;
+    --text: #cdd9e5; --bright: #e8f0fa; --moon: #f0e6c8; --accent: #4a90c4;
+    --accent2: #7ab8d4; --warm: #e8c87a; --danger: #e07a7a; --good: #7ac4a0;
+    --radius: 16px; --shadow: 0 8px 32px rgba(0,0,0,0.4);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'DM Sans', sans-serif; background: var(--ink); color: var(--text); min-height: 100vh; overflow-x: hidden; }
+
+  .starfield { position: fixed; inset: 0; pointer-events: none; z-index: 0; overflow: hidden; }
+  .star { position: absolute; background: white; border-radius: 50%; animation: twinkle var(--dur) ease-in-out infinite; animation-delay: var(--delay); opacity: 0; }
+  @keyframes twinkle { 0%,100%{opacity:0;transform:scale(0.8)} 50%{opacity:var(--max-op);transform:scale(1)} }
+  .moon-glow { position: fixed; top: -120px; right: -80px; width: 400px; height: 400px; background: radial-gradient(circle, rgba(240,230,200,0.08) 0%, rgba(160,180,220,0.04) 40%, transparent 70%); border-radius: 50%; pointer-events: none; z-index: 0; }
+
+  .app { position: relative; z-index: 1; max-width: 640px; margin: 0 auto; padding: 0 16px 120px; }
+  header { padding: 40px 0 20px; text-align: center; }
+  .logo { font-family: 'Playfair Display', serif; font-size: 28px; color: var(--moon); letter-spacing: 0.02em; margin-bottom: 4px; }
+  .logo-sub { font-size: 12px; color: var(--muted); letter-spacing: 0.12em; text-transform: uppercase; }
+
+  .sync-bar { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 7px 18px; background: var(--surface); border: 1px solid var(--border); border-radius: 50px; margin: 0 auto 20px; width: fit-content; font-size: 12px; color: var(--muted); transition: all 0.3s; }
+  .sync-bar.synced { color: var(--good); border-color: rgba(122,196,160,0.3); }
+  .sync-bar.syncing { color: var(--warm); border-color: rgba(232,200,122,0.3); }
+  .sync-bar.error { color: var(--danger); border-color: rgba(224,122,122,0.3); }
+  .auth-btn { background: none; border: 1px solid var(--border); color: var(--muted); font-family: 'DM Sans', sans-serif; font-size: 11px; padding: 4px 12px; border-radius: 50px; cursor: pointer; transition: all 0.2s; margin-left: 4px; white-space: nowrap; }
+  .auth-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .sync-dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; flex-shrink: 0; }
+  .sync-dot.pulse { animation: sdpulse 1.5s ease-in-out infinite; }
+  @keyframes sdpulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+  .nav { display: flex; gap: 4px; background: var(--surface); border-radius: 12px; padding: 4px; margin-bottom: 28px; border: 1px solid var(--border); }
+  .nav-tab { flex: 1; padding: 10px 8px; border: none; border-radius: 9px; background: transparent; color: var(--muted); font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 500; cursor: pointer; transition: all 0.2s; white-space: nowrap; }
+  .nav-tab.active { background: var(--card); color: var(--bright); box-shadow: 0 2px 8px rgba(0,0,0,0.3); }
+  .nav-tab:hover:not(.active) { color: var(--text); }
+
+  .panel { display: none; } .panel.active { display: block; }
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 24px; margin-bottom: 16px; box-shadow: var(--shadow); }
+  .card-title { font-family: 'Playfair Display', serif; font-size: 18px; color: var(--bright); margin-bottom: 4px; }
+  .card-desc { font-size: 13px; color: var(--muted); line-height: 1.6; margin-bottom: 20px; }
+
+  label { display: block; font-size: 12px; color: var(--muted); letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 8px; margin-top: 16px; }
+  input[type="number"], input[type="text"], input[type="time"], textarea, select { width: 100%; background: var(--mid); border: 1px solid var(--border); border-radius: 10px; color: var(--bright); font-family: 'DM Sans', sans-serif; font-size: 15px; padding: 12px 14px; outline: none; transition: border-color 0.2s; appearance: none; }
+  input:focus, textarea:focus, select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(74,144,196,0.15); }
+  textarea { resize: vertical; min-height: 80px; line-height: 1.6; }
+  select option { background: var(--mid); }
+
+  .slider-row { display: flex; align-items: center; gap: 12px; margin-top: 4px; }
+  input[type="range"] { flex: 1; -webkit-appearance: none; height: 4px; border-radius: 2px; background: var(--mid); outline: none; border: none; padding: 0; }
+  input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; border-radius: 50%; background: var(--accent); cursor: pointer; box-shadow: 0 0 8px rgba(74,144,196,0.4); }
+  .slider-val { font-family: 'Playfair Display', serif; font-size: 20px; color: var(--warm); min-width: 40px; text-align: right; }
+
+  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 13px 24px; border: none; border-radius: 10px; font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 500; cursor: pointer; transition: all 0.2s; }
+  .btn-primary { background: var(--accent); color: white; width: 100%; margin-top: 20px; }
+  .btn-primary:hover { background: var(--accent2); transform: translateY(-1px); }
+  .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+  .btn-ghost { background: transparent; border: 1px solid var(--border); color: var(--muted); font-size: 13px; padding: 8px 16px; margin-top: 0; }
+  .btn-ghost:hover { border-color: var(--accent); color: var(--accent); }
+
+  .quality-display { text-align: center; padding: 20px 0 8px; }
+  .quality-number { font-family: 'Playfair Display', serif; font-size: 64px; line-height: 1; background: linear-gradient(135deg, var(--moon), var(--accent2)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+  .quality-label { font-size: 13px; color: var(--muted); margin-top: 4px; }
+
+  .eff-bar-wrap { margin-top: 16px; }
+  .eff-bar-label { display: flex; justify-content: space-between; font-size: 12px; color: var(--muted); margin-bottom: 8px; }
+  .eff-bar-bg { height: 8px; background: var(--mid); border-radius: 4px; overflow: hidden; }
+  .eff-bar-fill { height: 100%; border-radius: 4px; transition: width 0.8s cubic-bezier(0.4,0,0.2,1); }
+
+  .step-indicator { display: flex; gap: 6px; margin-bottom: 24px; }
+  .step-dot { height: 3px; flex: 1; border-radius: 2px; background: var(--mid); transition: background 0.3s; }
+  .step-dot.done { background: var(--accent); } .step-dot.active { background: var(--warm); }
+  .thought-step { display: none; } .thought-step.active { display: block; }
+  .thought-label { font-family: 'Playfair Display', serif; font-size: 15px; color: var(--moon); margin-bottom: 8px; font-style: italic; }
+  .thought-hint { font-size: 13px; color: var(--muted); line-height: 1.7; margin-bottom: 12px; padding: 12px; background: rgba(255,255,255,0.03); border-left: 2px solid var(--accent); border-radius: 0 8px 8px 0; }
+  .step-btns { display: flex; gap: 10px; margin-top: 16px; }
+  .step-btns .btn { flex: 1; margin-top: 0; }
+
+  .entry-list { display: flex; flex-direction: column; gap: 10px; }
+  .entry-item { background: var(--mid); border: 1px solid var(--border); border-radius: 12px; padding: 16px; display: flex; justify-content: space-between; align-items: center; }
+  .entry-date { font-size: 13px; color: var(--muted); margin-bottom: 2px; }
+  .entry-stat { font-size: 13px; color: var(--text); }
+  .entry-stat span { font-family: 'Playfair Display', serif; color: var(--warm); font-size: 16px; }
+  .entry-eff { font-family: 'Playfair Display', serif; font-size: 22px; }
+
+  .prescription-box { background: linear-gradient(135deg, rgba(74,144,196,0.12), rgba(122,184,212,0.06)); border: 1px solid rgba(74,144,196,0.25); border-radius: 12px; padding: 20px; margin-top: 16px; }
+  .prescription-title { font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--accent2); margin-bottom: 12px; }
+  .time-block { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--border); }
+  .time-block:last-child { border-bottom: none; }
+  .time-key { font-size: 13px; color: var(--muted); }
+  .time-val { font-family: 'Playfair Display', serif; font-size: 18px; color: var(--moon); }
+
+  .breathing-wrap { display: flex; flex-direction: column; align-items: center; padding: 16px 0; }
+  .breath-circle { width: 120px; height: 120px; border-radius: 50%; border: 2px solid var(--accent); display: flex; align-items: center; justify-content: center; font-family: 'Playfair Display', serif; font-size: 14px; color: var(--moon); cursor: pointer; background: radial-gradient(circle, rgba(74,144,196,0.08), transparent); }
+  .breath-circle.breathing { animation: breathe 8s ease-in-out infinite; }
+  @keyframes breathe { 0%,100%{transform:scale(1);box-shadow:0 0 0 0 rgba(74,144,196,0.3)} 25%{transform:scale(1.3);box-shadow:0 0 30px 10px rgba(74,144,196,0.15)} 50%{transform:scale(1.3)} 75%{transform:scale(1)} }
+  .breath-label { margin-top: 16px; font-size: 13px; color: var(--muted); text-align: center; min-height: 20px; }
+
+  .rule-item { display: flex; gap: 14px; padding: 14px 0; border-bottom: 1px solid var(--border); align-items: flex-start; }
+  .rule-item:last-child { border-bottom: none; }
+  .rule-icon { font-size: 18px; flex-shrink: 0; margin-top: 1px; }
+  .rule-text { font-size: 14px; color: var(--text); line-height: 1.6; }
+  .rule-text strong { color: var(--bright); display: block; margin-bottom: 2px; }
+
+  .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(80px); padding: 12px 24px; border-radius: 50px; font-size: 14px; font-weight: 500; transition: transform 0.3s cubic-bezier(0.4,0,0.2,1); z-index: 100; white-space: nowrap; background: var(--good); color: #0d2a1e; }
+  .toast.err { background: var(--danger); color: white; }
+  .toast.show { transform: translateX(-50%) translateY(0); }
+
+  .empty { text-align: center; padding: 40px 20px; color: var(--muted); font-size: 14px; font-style: italic; }
+  .skeleton { background: linear-gradient(90deg, var(--mid) 25%, var(--surface) 50%, var(--mid) 75%); background-size: 200% 100%; animation: shimmer 1.5s infinite; border-radius: 8px; height: 48px; margin-bottom: 10px; }
+  @keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+
+  .mini-chart { display: flex; align-items: flex-end; gap: 6px; height: 60px; margin-top: 16px; margin-bottom: 8px; }
+  .mini-bar { flex: 1; border-radius: 4px 4px 0 0; min-height: 4px; transition: opacity 0.2s; opacity: 0.7; cursor: default; }
+  .mini-bar:hover { opacity: 1; }
+
+  @media(max-width:400px){.nav-tab{font-size:11px;padding:9px 4px}header{padding:28px 0 14px}}
+</style>
+</head>
+<body>
+
+<div class="starfield" id="stars"></div>
+<div class="moon-glow"></div>
+
+<div class="app">
+  <header>
+    <div class="logo">Stillwater</div>
+    <div class="logo-sub">CBT for Insomnia</div>
+  </header>
+
+  <div class="sync-bar syncing" id="sync-bar">
+    <div class="sync-dot pulse" id="sync-dot"></div>
+    <span id="sync-label">Loading your data…</span>
+    <button class="auth-btn" id="auth-btn" onclick="signIn()">Sign in with Google</button>
+  </div>
+
+  <nav class="nav">
+    <button class="nav-tab active" onclick="switchTab('journal',this)">Journal</button>
+    <button class="nav-tab" onclick="switchTab('thoughts',this)">Thoughts</button>
+    <button class="nav-tab" onclick="switchTab('restrict',this)">Schedule</button>
+    <button class="nav-tab" onclick="switchTab('tools',this)">Tools</button>
+  </nav>
+
+  <!-- JOURNAL -->
+  <div class="panel active" id="panel-journal">
+    <div class="card">
+      <div class="card-title">Last Night's Sleep</div>
+      <div class="card-desc">Fill this out each morning while your sleep is still fresh.</div>
+
+      <label>What time did you get into bed?</label>
+      <input type="time" id="j-bedtime" value="22:30">
+
+      <label>What time did you fall asleep? (estimate)</label>
+      <input type="time" id="j-sleep" value="00:00">
+
+      <label>How many times did you wake up?</label>
+      <div class="slider-row">
+        <input type="range" min="0" max="10" value="2" id="j-wakes" oninput="document.getElementById('j-wakes-val').textContent=this.value">
+        <div class="slider-val" id="j-wakes-val">2</div>
+      </div>
+
+      <label>Total time awake during wake-ups (minutes)</label>
+      <div class="slider-row">
+        <input type="range" min="0" max="120" step="5" value="30" id="j-wakemins" oninput="document.getElementById('j-wakemins-val').textContent=this.value+'m'">
+        <div class="slider-val" id="j-wakemins-val">30m</div>
+      </div>
+
+      <label>What time did you get out of bed?</label>
+      <input type="time" id="j-rise" value="07:00">
+
+      <label>Sleep Quality (1–10)</label>
+      <div class="quality-display">
+        <div class="quality-number" id="j-quality-disp">6</div>
+        <div class="quality-label">out of 10</div>
+      </div>
+      <div class="slider-row">
+        <input type="range" min="1" max="10" value="6" id="j-quality" oninput="document.getElementById('j-quality-disp').textContent=this.value">
+      </div>
+
+      <label>Anything that affected your sleep? (optional)</label>
+      <textarea id="j-notes" placeholder="stress, caffeine, noise, worry, exercise..."></textarea>
+
+      <div class="eff-bar-wrap">
+        <div class="eff-bar-label"><span>Sleep Efficiency</span><span id="j-eff-pct">—</span></div>
+        <div class="eff-bar-bg"><div class="eff-bar-fill" id="j-eff-fill" style="width:0%"></div></div>
+      </div>
+
+      <button class="btn btn-primary" id="save-journal-btn" onclick="saveJournal()">☁️ Save Entry</button>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Sleep History</div>
+      <div class="card-desc">Your recent entries. Efficiency target: 85%+. Saved to the cloud.</div>
+      <div class="mini-chart" id="j-chart"></div>
+      <div class="entry-list" id="j-history">
+        <div class="skeleton"></div><div class="skeleton"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- THOUGHTS -->
+  <div class="panel" id="panel-thoughts">
+    <div class="card">
+      <div class="card-title">Thought Record</div>
+      <div class="card-desc">When anxious thoughts keep you awake, walk through this 5-step CBT process.</div>
+
+      <div class="step-indicator">
+        <div class="step-dot active" id="dot-0"></div>
+        <div class="step-dot" id="dot-1"></div>
+        <div class="step-dot" id="dot-2"></div>
+        <div class="step-dot" id="dot-3"></div>
+        <div class="step-dot" id="dot-4"></div>
+      </div>
+
+      <div class="thought-step active" id="tstep-0">
+        <div class="thought-label">Step 1: The Thought</div>
+        <div class="thought-hint">Write the exact thought that's keeping you awake. Don't soften it — write what your brain is actually saying.</div>
+        <textarea id="t-thought" placeholder='e.g. "If I don&apos;t sleep tonight, I&apos;ll ruin tomorrow."' style="min-height:100px"></textarea>
+        <label>How much do you believe this right now? (0–100%)</label>
+        <div class="slider-row">
+          <input type="range" min="0" max="100" value="80" id="t-belief" oninput="document.getElementById('t-belief-val').textContent=this.value+'%'">
+          <div class="slider-val" id="t-belief-val">80%</div>
+        </div>
+        <label>How does this thought make you feel?</label>
+        <input type="text" id="t-emotion" placeholder="anxious, hopeless, frustrated...">
+        <div class="step-btns"><button class="btn btn-primary" onclick="nextThoughtStep()">Next →</button></div>
+      </div>
+
+      <div class="thought-step" id="tstep-1">
+        <div class="thought-label">Step 2: Evidence For</div>
+        <div class="thought-hint">What facts support this thought? Not feelings — actual evidence. Be specific.</div>
+        <textarea id="t-for" style="min-height:100px"></textarea>
+        <div class="step-btns">
+          <button class="btn btn-ghost" onclick="prevThoughtStep()">← Back</button>
+          <button class="btn btn-primary" onclick="nextThoughtStep()">Next →</button>
+        </div>
+      </div>
+
+      <div class="thought-step" id="tstep-2">
+        <div class="thought-label">Step 3: Evidence Against</div>
+        <div class="thought-hint">What facts argue against this thought? Past experiences, what you know about sleep.</div>
+        <textarea id="t-against" style="min-height:100px"></textarea>
+        <div class="step-btns">
+          <button class="btn btn-ghost" onclick="prevThoughtStep()">← Back</button>
+          <button class="btn btn-primary" onclick="nextThoughtStep()">Next →</button>
+        </div>
+      </div>
+
+      <div class="thought-step" id="tstep-3">
+        <div class="thought-label">Step 4: The Distortion</div>
+        <div class="thought-hint">Most sleep anxiety thoughts contain a recognizable thinking error. Which fits best?</div>
+        <select id="t-distortion">
+          <option value="">— choose one —</option>
+          <option>Catastrophizing — imagining the worst possible outcome</option>
+          <option>Fortune-telling — predicting the future as fact</option>
+          <option>All-or-nothing thinking — no middle ground</option>
+          <option>Magnification — blowing the consequence out of proportion</option>
+          <option>Mind reading — assuming how others will perceive you</option>
+          <option>Emotional reasoning — "I feel it, so it must be true"</option>
+          <option>Should statements — rigid rules about how things must be</option>
+          <option>Labeling — "I'm a bad sleeper / I'm broken"</option>
+        </select>
+        <div class="step-btns">
+          <button class="btn btn-ghost" onclick="prevThoughtStep()">← Back</button>
+          <button class="btn btn-primary" onclick="nextThoughtStep()">Next →</button>
+        </div>
+      </div>
+
+      <div class="thought-step" id="tstep-4">
+        <div class="thought-label">Step 5: The Balanced Thought</div>
+        <div class="thought-hint">Write a new thought that's realistic — not falsely positive, just more accurate.</div>
+        <textarea id="t-balanced" style="min-height:100px"></textarea>
+        <label>How much do you believe the original thought now? (0–100%)</label>
+        <div class="slider-row">
+          <input type="range" min="0" max="100" value="50" id="t-belief2" oninput="document.getElementById('t-belief2-val').textContent=this.value+'%'">
+          <div class="slider-val" id="t-belief2-val">50%</div>
+        </div>
+        <div class="step-btns">
+          <button class="btn btn-ghost" onclick="prevThoughtStep()">← Back</button>
+          <button class="btn btn-primary" id="save-thought-btn" onclick="saveThought()">☁️ Save Record</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Saved Records</div>
+      <div id="t-history"><div class="skeleton"></div></div>
+    </div>
+  </div>
+
+  <!-- SCHEDULE -->
+  <div class="panel" id="panel-restrict">
+    <div class="card">
+      <div class="card-title">Sleep Restriction Therapy</div>
+      <div class="card-desc">SRT limits your time in bed to match your actual sleep, building sleep pressure and consolidating fragmented sleep.</div>
+
+      <label>Average hours of actual sleep per night</label>
+      <div class="slider-row">
+        <input type="range" min="3" max="9" step="0.5" value="5.5" id="sr-avg" oninput="updatePrescription()">
+        <div class="slider-val" id="sr-avg-val">5.5h</div>
+      </div>
+
+      <label>Target wake time (every day, including weekends)</label>
+      <input type="time" id="sr-rise" value="06:30" oninput="updatePrescription()">
+
+      <div class="prescription-box">
+        <div class="prescription-title">Your Sleep Prescription</div>
+        <div class="time-block"><div class="time-key">Get into bed no earlier than</div><div class="time-val" id="sr-bedtime">—</div></div>
+        <div class="time-block"><div class="time-key">Wake time (non-negotiable)</div><div class="time-val" id="sr-risetime">—</div></div>
+        <div class="time-block"><div class="time-key">Window in bed</div><div class="time-val" id="sr-window">—</div></div>
+        <div class="time-block"><div class="time-key">Current efficiency</div><div class="time-val" id="sr-eff">—</div></div>
+      </div>
+      <div class="card-desc" style="margin-top:16px;margin-bottom:0"><strong style="color:var(--bright)">When to extend:</strong> Once efficiency stays above 85% for 5+ nights, add 15 minutes (move bedtime earlier).</div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">The Rules of the Bed</div>
+      <div class="card-desc">Stimulus control — rebuilding the bed-sleep association.</div>
+      <div>
+        <div class="rule-item"><div class="rule-icon">🛏️</div><div class="rule-text"><strong>Bed is for sleep and sex only</strong>No reading, scrolling, watching, or worrying in bed.</div></div>
+        <div class="rule-item"><div class="rule-icon">🚶</div><div class="rule-text"><strong>Get up if you can't sleep</strong>If awake ~20 minutes, leave the room. Return only when genuinely sleepy.</div></div>
+        <div class="rule-item"><div class="rule-icon">⏰</div><div class="rule-text"><strong>Same wake time every day</strong>Sleeping in even 1 hour on weekends unravels progress. Hardest rule. Most important rule.</div></div>
+        <div class="rule-item"><div class="rule-icon">🚫</div><div class="rule-text"><strong>No naps (for now)</strong>Napping depletes sleep pressure, making it harder to fall asleep at night.</div></div>
+        <div class="rule-item"><div class="rule-icon">🌙</div><div class="rule-text"><strong>Don't try to sleep</strong>Practice quiet wakefulness. "I'll just rest here" works better than "I must sleep NOW."</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TOOLS -->
+  <div class="panel" id="panel-tools">
+    <div class="card">
+      <div class="card-title">4-7-8 Breathing</div>
+      <div class="card-desc">Activates the parasympathetic nervous system. Tap to begin.</div>
+      <div class="breathing-wrap">
+        <div class="breath-circle" id="breath-circle" onclick="toggleBreathing()">Tap</div>
+        <div class="breath-label" id="breath-label">Tap to start guided breathing</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Brain Dump</div>
+      <div class="card-desc">Can't sleep because your mind is racing? Empty it here. Getting thoughts out signals your brain it doesn't need to keep holding them.</div>
+      <textarea id="braindump" placeholder="Everything on your mind right now... to-dos, worries, random thoughts. Let it all out." style="min-height:140px"></textarea>
+      <button class="btn btn-primary" onclick="clearDump()">✓ Done — Clear & Let Go</button>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Paradoxical Intention</div>
+      <div class="card-desc">Try to stay awake with your eyes open. The pressure to fall asleep is often what prevents it — removing the goal removes the anxiety.</div>
+      <div class="rule-item" style="padding-top:0"><div class="rule-icon">💡</div><div class="rule-text">Lie in bed in the dark. Keep your eyes open softly. Your only goal is to stay awake while remaining still. Don't fight sleep — just don't chase it.</div></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Cognitive Shuffling</div>
+      <div class="card-desc">Visualize random, unconnected images — this mimics the semi-random imagery of early sleep onset and quiets problem-solving mode.</div>
+      <div style="text-align:center; padding: 24px 0;">
+        <div style="font-family:'Playfair Display',serif; font-size:56px; color:var(--moon); margin-bottom:8px; transition: opacity 0.4s;" id="shuffle-display">—</div>
+        <div style="font-size:13px; color:var(--muted)">Visualize something that starts with this letter</div>
+      </div>
+      <button class="btn btn-primary" onclick="shuffleWord()">Generate Letter</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// Stars
+(function(){
+  const f=document.getElementById('stars');
+  for(let i=0;i<120;i++){
+    const s=document.createElement('div'); s.className='star';
+    const z=Math.random()*2+0.5;
+    s.style.cssText=`width:${z}px;height:${z}px;left:${Math.random()*100}%;top:${Math.random()*100}%;--dur:${3+Math.random()*5}s;--delay:${Math.random()*6}s;--max-op:${0.3+Math.random()*0.7}`;
+    f.appendChild(s);
+  }
+})();
+
+// ===== CONFIG =====
+// To use Google Sign-In, create an OAuth 2.0 Client ID at https://console.cloud.google.com/apis/credentials
+// 1. Create a project (or use existing)
+// 2. Enable "Google Drive API" under APIs & Services
+// 3. Create OAuth 2.0 Client ID → Web application
+// 4. Add your hosting domain to "Authorized JavaScript origins" (e.g. https://yourdomain.github.io)
+// 5. Paste the Client ID below:
+const GOOGLE_CLIENT_ID = '669148175701-uuhvkrd9drem1frssfeadr8578g8vlip.apps.googleusercontent.com';
+
+// ===== STORAGE =====
+const JKEY = 'stillwater_journal';
+const TKEY = 'stillwater_thoughts';
+let journalData = [];
+let thoughtRecords = [];
+let busy = false;
+let gAccessToken = null;
+let gUserName = '';
+let driveFileCache = {}; // filename → fileId
+
+function setSyncStatus(state, msg) {
+  const bar = document.getElementById('sync-bar');
+  const dot = document.getElementById('sync-dot');
+  bar.className = 'sync-bar ' + state;
+  dot.className = 'sync-dot' + (state === 'syncing' ? ' pulse' : '');
+  document.getElementById('sync-label').textContent = msg;
+}
+
+// ===== GOOGLE AUTH =====
+let tokenClient;
+function initGoogleAuth() {
+  if (!GOOGLE_CLIENT_ID) {
+    setSyncStatus('error', 'No Google Client ID — using local storage');
+    loadLocal();
+    return;
+  }
+  try {
+    tokenClient = google.accounts.oauth2.initTokenClient({
+      client_id: GOOGLE_CLIENT_ID,
+      scope: 'https://www.googleapis.com/auth/drive.appdata',
+      callback: handleTokenResponse,
+    });
+    // Check if we have a cached token
+    const cached = sessionStorage.getItem('sw_gtoken');
+    if (cached) {
+      gAccessToken = cached;
+      setSyncStatus('syncing', 'Reconnecting…');
+      validateAndLoad();
+    } else {
+      setSyncStatus('error', 'Not signed in');
+      updateAuthUI(false);
+      loadLocal();
+    }
+  } catch(e) {
+    setSyncStatus('error', 'Google auth unavailable — local mode');
+    loadLocal();
+  }
+}
+
+function handleTokenResponse(resp) {
+  if (resp.error) {
+    setSyncStatus('error', 'Sign-in failed: ' + resp.error);
+    loadLocal();
+    return;
+  }
+  gAccessToken = resp.access_token;
+  sessionStorage.setItem('sw_gtoken', gAccessToken);
+  validateAndLoad();
+}
+
+async function validateAndLoad() {
+  try {
+    // Verify token is valid by fetching user info
+    const r = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+      headers: { 'Authorization': 'Bearer ' + gAccessToken }
+    });
+    if (!r.ok) throw new Error('Token invalid');
+    const u = await r.json();
+    gUserName = u.given_name || u.name || 'you';
+    updateAuthUI(true);
+    await loadFromCloud();
+  } catch(e) {
+    gAccessToken = null;
+    sessionStorage.removeItem('sw_gtoken');
+    setSyncStatus('error', 'Session expired — sign in again');
+    updateAuthUI(false);
+    loadLocal();
+  }
+}
+
+function signIn() {
+  if (!GOOGLE_CLIENT_ID) {
+    showToast('Set GOOGLE_CLIENT_ID first', true);
+    return;
+  }
+  tokenClient.requestAccessToken({ prompt: 'consent' });
+}
+
+function signOut() {
+  if (gAccessToken) {
+    google.accounts.oauth2.revoke(gAccessToken);
+  }
+  gAccessToken = null;
+  gUserName = '';
+  sessionStorage.removeItem('sw_gtoken');
+  updateAuthUI(false);
+  setSyncStatus('error', 'Signed out — using local backup');
+}
+
+function updateAuthUI(signedIn) {
+  document.getElementById('auth-btn').textContent = signedIn ? 'Sign out' : 'Sign in with Google';
+  document.getElementById('auth-btn').onclick = signedIn ? signOut : signIn;
+  if (signedIn && gUserName) {
+    document.getElementById('sync-label').textContent = `Synced as ${gUserName}`;
+  }
+}
+
+// ===== GOOGLE DRIVE HELPERS =====
+async function driveGet(filename) {
+  if (!gAccessToken) return null;
+  try {
+    // Find file
+    let fileId = driveFileCache[filename];
+    if (!fileId) {
+      const search = await fetch(
+        `https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&q=name='${filename}'&fields=files(id)`,
+        { headers: { 'Authorization': 'Bearer ' + gAccessToken } }
+      );
+      if (!search.ok) throw new Error('Drive search failed');
+      const res = await search.json();
+      if (!res.files || !res.files.length) return null;
+      fileId = res.files[0].id;
+      driveFileCache[filename] = fileId;
+    }
+    // Get content
+    const dl = await fetch(
+      `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`,
+      { headers: { 'Authorization': 'Bearer ' + gAccessToken } }
+    );
+    if (!dl.ok) throw new Error('Drive download failed');
+    return await dl.text();
+  } catch(e) {
+    console.warn('driveGet error:', e);
+    return null;
+  }
+}
+
+async function driveSet(filename, content) {
+  if (!gAccessToken) return false;
+  try {
+    let fileId = driveFileCache[filename];
+    if (!fileId) {
+      const search = await fetch(
+        `https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&q=name='${filename}'&fields=files(id)`,
+        { headers: { 'Authorization': 'Bearer ' + gAccessToken } }
+      );
+      const res = await search.json();
+      if (res.files && res.files.length) {
+        fileId = res.files[0].id;
+        driveFileCache[filename] = fileId;
+      }
+    }
+
+    if (fileId) {
+      // Update existing
+      const r = await fetch(
+        `https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=media`,
+        { method: 'PATCH', headers: { 'Authorization': 'Bearer ' + gAccessToken, 'Content-Type': 'application/json' }, body: content }
+      );
+      return r.ok;
+    } else {
+      // Create new
+      const metadata = { name: filename, parents: ['appDataFolder'] };
+      const form = new FormData();
+      form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
+      form.append('file', new Blob([content], { type: 'application/json' }));
+      const r = await fetch(
+        'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart',
+        { method: 'POST', headers: { 'Authorization': 'Bearer ' + gAccessToken }, body: form }
+      );
+      if (r.ok) {
+        const created = await r.json();
+        driveFileCache[filename] = created.id;
+      }
+      return r.ok;
+    }
+  } catch(e) {
+    console.warn('driveSet error:', e);
+    return false;
+  }
+}
+
+// ===== LOAD / PERSIST =====
+function loadLocal() {
+  journalData = JSON.parse(localStorage.getItem(JKEY) || '[]');
+  thoughtRecords = JSON.parse(localStorage.getItem(TKEY) || '[]');
+  const total = journalData.length + thoughtRecords.length;
+  if (total > 0) setSyncStatus('error', `Offline — ${total} local records`);
+  renderHistory();
+  renderThoughtHistory();
+}
+
+async function loadFromCloud() {
+  setSyncStatus('syncing', 'Loading your data…');
+  try {
+    const [jr, tr] = await Promise.all([
+      driveGet(JKEY + '.json'),
+      driveGet(TKEY + '.json')
+    ]);
+    journalData = jr ? JSON.parse(jr) : [];
+    thoughtRecords = tr ? JSON.parse(tr) : [];
+
+    // Merge with any local-only entries
+    const localJ = JSON.parse(localStorage.getItem(JKEY) || '[]');
+    const localT = JSON.parse(localStorage.getItem(TKEY) || '[]');
+    journalData = mergeById(journalData, localJ);
+    thoughtRecords = mergeById(thoughtRecords, localT);
+
+    // Save merged back to local
+    localStorage.setItem(JKEY, JSON.stringify(journalData));
+    localStorage.setItem(TKEY, JSON.stringify(thoughtRecords));
+
+    const total = journalData.length + thoughtRecords.length;
+    setSyncStatus('synced', total > 0 ? `Synced · ${total} records ✓` : `Ready — no entries yet`);
+  } catch(e) {
+    console.warn('Cloud load failed:', e);
+    loadLocal();
+    setSyncStatus('error', 'Cloud unavailable — using local');
+  }
+  renderHistory();
+  renderThoughtHistory();
+}
+
+function mergeById(cloud, local) {
+  const map = new Map();
+  for (const r of [...cloud, ...local]) map.set(r.id, r);
+  return [...map.values()].sort((a,b) => (b.ts||'').localeCompare(a.ts||''));
+}
+
+async function persist(key, data) {
+  const json = JSON.stringify(data);
+  localStorage.setItem(key, json); // always backup locally
+  if (!gAccessToken) {
+    setSyncStatus('error', 'Saved locally (sign in to sync)');
+    return;
+  }
+  setSyncStatus('syncing', 'Saving…');
+  try {
+    const ok = await driveSet(key + '.json', json);
+    const total = journalData.length + thoughtRecords.length;
+    if (ok) {
+      setSyncStatus('synced', `Saved · ${total} records ✓`);
+    } else {
+      setSyncStatus('error', 'Saved locally (cloud error)');
+    }
+  } catch(e) {
+    setSyncStatus('error', 'Saved locally (cloud unavailable)');
+  }
+}
+
+// ===== NAV =====
+function switchTab(tab, el) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('panel-' + tab).classList.add('active');
+  el.classList.add('active');
+}
+
+// ===== TOAST =====
+function showToast(msg, err) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast' + (err ? ' err' : '') + ' show';
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+// ===== JOURNAL =====
+function calcEff(bed, slp, wakeMins, rise) {
+  const m = s => { const [h,n] = s.split(':').map(Number); return h*60+n; };
+  let b=m(bed), s=m(slp), r=m(rise);
+  if(s<b) s+=1440; if(r<b) r+=1440;
+  const inBed = r-b;
+  const asleep = inBed - (s-b) - wakeMins;
+  return inBed <= 0 ? 0 : Math.round((asleep/inBed)*100);
+}
+
+function updateEffPreview() {
+  const bed=document.getElementById('j-bedtime').value;
+  const slp=document.getElementById('j-sleep').value;
+  const wm=parseInt(document.getElementById('j-wakemins').value);
+  const rise=document.getElementById('j-rise').value;
+  if(!bed||!slp||!rise) return;
+  const eff=Math.max(0,Math.min(100,calcEff(bed,slp,wm,rise)));
+  document.getElementById('j-eff-pct').textContent=eff+'%';
+  const fill=document.getElementById('j-eff-fill');
+  fill.style.width=eff+'%';
+  fill.style.background=eff>=85?'linear-gradient(90deg,#7ac4a0,#4a90c4)':eff>=70?'linear-gradient(90deg,#e8c87a,#c4904a)':'linear-gradient(90deg,#e07a7a,#c45050)';
+}
+['j-bedtime','j-sleep','j-wakemins','j-rise'].forEach(id => {
+  const el=document.getElementById(id);
+  if(el){el.addEventListener('change',updateEffPreview);el.addEventListener('input',updateEffPreview);}
+});
+
+async function saveJournal() {
+  if(busy) return; busy=true;
+  const btn=document.getElementById('save-journal-btn');
+  btn.disabled=true; btn.textContent='Saving…';
+  const bed=document.getElementById('j-bedtime').value;
+  const slp=document.getElementById('j-sleep').value;
+  const wm=parseInt(document.getElementById('j-wakemins').value);
+  const rise=document.getElementById('j-rise').value;
+  const entry={
+    id:Date.now(),
+    date:new Date().toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}),
+    ts:new Date().toISOString(),
+    bedtime:bed, sleep:slp, wakes:document.getElementById('j-wakes').value,
+    wakemins:wm, rise:rise,
+    quality:document.getElementById('j-quality').value,
+    notes:document.getElementById('j-notes').value,
+    eff:Math.max(0,Math.min(100,calcEff(bed,slp,wm,rise)))
+  };
+  journalData.unshift(entry);
+  if(journalData.length>90) journalData=journalData.slice(0,90);
+  await persist(JKEY, journalData);
+  renderHistory();
+  showToast('☁️ Entry saved to cloud');
+  document.getElementById('j-notes').value='';
+  btn.disabled=false; btn.textContent='☁️ Save Entry'; busy=false;
+}
+
+function renderHistory() {
+  const el=document.getElementById('j-history');
+  const chart=document.getElementById('j-chart');
+  if(!journalData.length){
+    el.innerHTML='<div class="empty">No entries yet. Fill in last night\'s sleep above.</div>';
+    chart.innerHTML=''; return;
+  }
+  const last7=journalData.slice(0,7).reverse();
+  chart.innerHTML=last7.map(e=>{
+    const h=Math.max(4,(Math.max(0,e.eff)/100)*60);
+    const c=e.eff>=85?'#7ac4a0':e.eff>=70?'#e8c87a':'#e07a7a';
+    return `<div class="mini-bar" title="${e.date}: ${e.eff}%" style="height:${h}px;background:${c}"></div>`;
+  }).join('');
+  el.innerHTML=journalData.slice(0,14).map(e=>`
+    <div class="entry-item">
+      <div>
+        <div class="entry-date">${e.date}</div>
+        <div class="entry-stat">Quality <span>${e.quality}/10</span></div>
+      </div>
+      <div class="entry-eff" style="color:${e.eff>=85?'#7ac4a0':e.eff>=70?'#e8c87a':'#e07a7a'}">${e.eff}%</div>
+    </div>`).join('');
+}
+
+// ===== THOUGHTS =====
+let thoughtStep=0;
+const STEPS=5;
+function updateStepDots(){
+  for(let i=0;i<STEPS;i++){
+    document.getElementById('dot-'+i).className='step-dot'+(i<thoughtStep?' done':i===thoughtStep?' active':'');
+    document.getElementById('tstep-'+i).className='thought-step'+(i===thoughtStep?' active':'');
+  }
+}
+function nextThoughtStep(){
+  if(thoughtStep===0&&!document.getElementById('t-thought').value.trim()){showToast('Write the thought first',true);return;}
+  if(thoughtStep<STEPS-1){thoughtStep++;updateStepDots();}
+}
+function prevThoughtStep(){if(thoughtStep>0){thoughtStep--;updateStepDots();}}
+
+async function saveThought(){
+  if(busy) return; busy=true;
+  const btn=document.getElementById('save-thought-btn');
+  btn.disabled=true; btn.textContent='Saving…';
+  const rec={
+    id:Date.now(),
+    date:new Date().toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}),
+    ts:new Date().toISOString(),
+    thought:document.getElementById('t-thought').value,
+    emotion:document.getElementById('t-emotion').value,
+    beliefBefore:document.getElementById('t-belief').value,
+    evidenceFor:document.getElementById('t-for').value,
+    evidenceAgainst:document.getElementById('t-against').value,
+    distortion:document.getElementById('t-distortion').value,
+    beliefAfter:document.getElementById('t-belief2').value,
+    balanced:document.getElementById('t-balanced').value
+  };
+  thoughtRecords.unshift(rec);
+  if(thoughtRecords.length>50) thoughtRecords=thoughtRecords.slice(0,50);
+  await persist(TKEY, thoughtRecords);
+  thoughtStep=0;
+  ['t-thought','t-emotion','t-for','t-against','t-balanced'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('t-distortion').value='';
+  updateStepDots();
+  renderThoughtHistory();
+  showToast('☁️ Thought record saved');
+  btn.disabled=false; btn.textContent='☁️ Save Record'; busy=false;
+}
+
+function renderThoughtHistory(){
+  const el=document.getElementById('t-history');
+  if(!thoughtRecords.length){el.innerHTML='<div class="empty">No records yet. Complete a thought record above.</div>';return;}
+  el.innerHTML=thoughtRecords.slice(0,8).map(r=>`
+    <div class="entry-item" style="flex-direction:column;align-items:flex-start;gap:8px;">
+      <div style="display:flex;justify-content:space-between;width:100%;align-items:center;">
+        <div class="entry-date">${r.date} · ${r.emotion||'unspecified'}</div>
+        <div style="font-size:12px;color:var(--muted)">${r.beliefBefore}% → ${r.beliefAfter}%</div>
+      </div>
+      <div style="font-size:13px;color:var(--muted);font-style:italic;">"${(r.thought||'').substring(0,80)}${(r.thought||'').length>80?'…':''}"</div>
+      ${r.balanced?`<div style="font-size:13px;color:var(--good)">→ ${r.balanced.substring(0,80)}${r.balanced.length>80?'…':''}</div>`:''}
+    </div>`).join('');
+}
+
+// ===== RESTRICTION =====
+function updatePrescription(){
+  const avg=parseFloat(document.getElementById('sr-avg').value);
+  document.getElementById('sr-avg-val').textContent=avg+'h';
+  const rise=document.getElementById('sr-rise').value;
+  if(!rise) return;
+  const [rh,rm]=rise.split(':').map(Number);
+  const riseMins=rh*60+rm;
+  const win=Math.max(300,avg*60);
+  let bed=((riseMins-win)%1440+1440)%1440;
+  const bh=Math.floor(bed/60),bm=bed%60;
+  const bStr=String(bh).padStart(2,'0')+':'+String(bm).padStart(2,'0');
+  const eff=Math.round((avg*60/win)*100);
+  const fmt=t=>{const[h,m]=t.split(':').map(Number);return((h%12)||12)+':'+String(m).padStart(2,'0')+' '+(h>=12?'PM':'AM');};
+  document.getElementById('sr-bedtime').textContent=fmt(bStr);
+  document.getElementById('sr-risetime').textContent=fmt(rise);
+  document.getElementById('sr-window').textContent=(win/60).toFixed(1)+' hours';
+  document.getElementById('sr-eff').textContent=eff+'%';
+}
+document.getElementById('sr-avg').addEventListener('input',updatePrescription);
+document.getElementById('sr-rise').addEventListener('change',updatePrescription);
+updatePrescription();
+
+// ===== BREATHING =====
+let breathOn=false,breathIdx=0,breathTimer;
+const phases=[{label:'Inhale through nose…',dur:4},{label:'Hold…',dur:7},{label:'Exhale through mouth…',dur:8}];
+function toggleBreathing(){
+  breathOn=!breathOn;
+  const c=document.getElementById('breath-circle');
+  if(breathOn){c.classList.add('breathing');c.textContent='◉';runPhase();}
+  else{c.classList.remove('breathing');c.textContent='Tap';document.getElementById('breath-label').textContent='Tap to start guided breathing';clearTimeout(breathTimer);breathIdx=0;}
+}
+function runPhase(){
+  if(!breathOn) return;
+  const p=phases[breathIdx%phases.length];
+  document.getElementById('breath-label').textContent=p.label+' ('+p.dur+'s)';
+  breathTimer=setTimeout(()=>{breathIdx++;runPhase();},p.dur*1000);
+}
+
+// ===== BRAIN DUMP =====
+function clearDump(){
+  if(!document.getElementById('braindump').value.trim()){showToast('Nothing to clear',true);return;}
+  document.getElementById('braindump').value='';
+  showToast('Released ✓ Let it go');
+}
+
+// ===== SHUFFLE =====
+const LETTERS='ABCDEFGHIJKLMNOPRSTW';
+function shuffleWord(){
+  const el=document.getElementById('shuffle-display');
+  el.style.opacity='0';
+  setTimeout(()=>{el.textContent=LETTERS[Math.floor(Math.random()*LETTERS.length)];el.style.opacity='1';},200);
+}
+
+// ===== INIT =====
+updateEffPreview();
+// Wait for Google Identity Services to load, then init
+if (GOOGLE_CLIENT_ID) {
+  const gsiReady = setInterval(() => {
+    if (typeof google !== 'undefined' && google.accounts) {
+      clearInterval(gsiReady);
+      initGoogleAuth();
+    }
+  }, 100);
+  // Timeout fallback
+  setTimeout(() => { clearInterval(gsiReady); if (!gAccessToken) { setSyncStatus('error', 'Google failed to load — local mode'); loadLocal(); updateAuthUI(false); } }, 5000);
+} else {
+  setSyncStatus('error', 'No Client ID — set GOOGLE_CLIENT_ID');
+  loadLocal();
+  updateAuthUI(false);
+}
+</script>
+</body>
+</html>
